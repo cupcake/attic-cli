@@ -1,0 +1,36 @@
+# directories
+/bin
+/CMakeFiles
+.svn
+/vendor
+/build
+vendor
+
+# Boost 
+/vendor/boost_1_53_0/b2
+/vendor/boost_1_53_0/bjam
+/vendor/boost_1_53_0/bootstrap.log
+
+# Build files
+CMakeCache.txt
+cmake_install.cmake
+
+*.Po
+
+# Generated Makefile
+Makefile
+
+# output files
+*.o
+
+# swapfiles
+*.swp
+*.swo
+
+# libs
+*.a
+*.so
+
+# other
+*.pyc # generated during the build process
+CMakefiles

@@ -1,0 +1,3 @@
+[submodule "vendor/libattic"]
+	path = vendor/libattic
+	url = git@git.cupcake.io:libattic.git
