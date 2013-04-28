@@ -38,6 +38,21 @@ bool RequestAuthorizationDetails(const std::string& entity_url, const std::strin
     return ret;
 }
 
+bool RegisterPassphrase(const std::string& passphrase) {
+    int status = RegisterPassphrase(passphrase.c_str());
+    if(!status)
+        return true;
+    return false;
+}
+
+bool EnterPassphrase(const std::string& passphrase) {
+    int status = EnterPassphrase(passphrase.c_str());
+    if(!status)
+        return true;
+    return false;
+}
+
+
 int main(int argc, char** argv) {
     if(argc > 1) {
 
