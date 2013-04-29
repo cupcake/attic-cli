@@ -169,6 +169,17 @@ void Application::ProcessCommand(split& s) {
         else if(toplevel == "help") {
             DisplayHelp();
         }
+        else if(toplevel == "upload") {
+            if(s.size() > 1) {
+                int result = UploadFile(s[1]);
+                std::cout<<" result : " << result <<std::endl;
+            }
+            else {
+                std::cout<<" usage : upload <path to file> " << std::endl;
+
+            }
+
+        }
         else if(toplevel == "exit") {
             running_ = false;
             if(libstarted_) {
@@ -187,6 +198,13 @@ void Application::DisplayHelp() {
     std::string help;
     help += " registerapp - register application with server \n";
     help += " requestauthcode - trade in authcode for auth token \n";
+    help += " start - start app \n";
+    help += " stop - stop app \n";
+    help += " registerpass - register a passphrase \n";
+    help += " enterpass - enter passphrase \n";
+    help += " poll - start polling \n";
+    help += " upload - upload file \n";
+    help += " exit - shutdown lib and exit \n";
     help += " help - displays help \n";
         
     std::cout<< help << std::endl;
