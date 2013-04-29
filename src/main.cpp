@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "libattic.h"
+#include "application.h"
 
 bool RegisterApp(const std::string& entity_url, const std::string& device_name) {
     char* buf = new char[entity_url.size()+1];
@@ -54,7 +55,16 @@ bool EnterPassphrase(const std::string& passphrase) {
 
 
 int main(int argc, char** argv) {
+    std::cout<< " arg count : " << argc << std::endl;
     if(argc > 1) {
+        std::string cmd = argv[1];
+        std::cout<<" input : " << argv[1] << std::endl;
+
+        if(cmd == "run") {
+            Application app;
+            app.Run();
+
+        }
 
     }
 
