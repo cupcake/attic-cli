@@ -218,8 +218,6 @@ int Application::StartLibrary() {
     return status;
 }
 
-
-
 int Application::StopLibrary() {
     int status = 0;
     status = ShutdownLibAttic(NULL);
