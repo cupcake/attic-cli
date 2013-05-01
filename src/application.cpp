@@ -176,9 +176,25 @@ void Application::ProcessCommand(split& s) {
             }
             else {
                 std::cout<<" usage : upload <path to file> " << std::endl;
-
             }
-
+        }
+        else if(toplevel == "delete") {
+            if(s.size() > 1) {
+                int result = RemoveFile(s[1]);
+                std::cout<<" result : " << result <<std::endl;
+            }
+            else {
+                std::cout<<" usage : delete <path to file> " << std::endl;
+            }
+        }
+        else if(toplevel == "rename"){
+            if(s.size() > 2) {
+                int result = RenameFile(s[1], s[2]);
+                std::cout<<" result : " << result <<std::endl;
+            }
+            else {
+                std::cout<<" usage : rename <path to file> <name>" << std::endl;
+            }
         }
         else if(toplevel == "exit") {
             running_ = false;
@@ -246,7 +262,7 @@ int Application::UploadFile(const std::string& filepath) {
     return status;
 }
 
-int Application::DeleteFile(const std::string& filepath) {
+int Application::RemoveFile(const std::string& filepath) {
     int status = -1;
     std::string canonical;
     status = GetCanonicalPath(filepath, canonical);
@@ -259,8 +275,9 @@ int Application::DeleteFile(const std::string& filepath) {
 
 int Application::RenameFile(const std::string& old_filepath, const std::string& new_filename) {
     int status = -1;
-
-    status = RenameFile(old_filepath.c_str(), new_filename.c_str());
+    std::string canonical;
+    status = GetCanonicalPath(old_filepath, canonical);
+    status = RenameFile(canonical.c_str(), new_filename.c_str());
     return status;
 }
 

@@ -18,7 +18,7 @@ class Application {
     bool EnterPass(const std::string& passphrase);
 
     int UploadFile(const std::string& filepath);
-    int DeleteFile(const std::string& filepath);
+    int RemoveFile(const std::string& filepath);
     int RenameFile(const std::string& old_filepath, const std::string& new_filename);
     int RenameFolder(const std::string& old_folderpath, const std::string& new_foldername);
     int StartPolling(void);
