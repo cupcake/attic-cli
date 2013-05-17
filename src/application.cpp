@@ -178,9 +178,17 @@ void Application::ProcessCommand(split& s) {
                 std::cout<<" usage : upload <path to file> " << std::endl;
             }
         }
+        else if(toplevel == "upload_folder") {
+            if(s.size() > 1) {
+                UploadFolder(s[1]);
+            }
+            else {
+                std::cout<<" usage : upload <path to folder> " << std::endl;
+            }
+        }
         else if(toplevel == "delete") {
             if(s.size() > 1) {
-                int result = RemoveFile(s[1]);
+                int result = RemoveLocalFile(s[1]);
                 std::cout<<" result : " << result <<std::endl;
             }
             else {
@@ -189,11 +197,38 @@ void Application::ProcessCommand(split& s) {
         }
         else if(toplevel == "rename"){
             if(s.size() > 2) {
-                int result = RenameFile(s[1], s[2]);
+                int result = RenameLocalFile(s[1], s[2]);
                 std::cout<<" result : " << result <<std::endl;
             }
             else {
-                std::cout<<" usage : rename <path to file> <name>" << std::endl;
+                std::cout<<" usage : rename <path/to/file> <path/to/file>" << std::endl;
+            }
+        }
+        else if(toplevel == "rename_folder") {
+            if(s.size() > 2) {
+                int result = RenameLocalFolder(s[1], s[2]);
+                std::cout<<" result : " << result <<std::endl;
+            }
+            else {
+                std::cout<<" usage : rename <path/to/folder> <path/to/folder>" << std::endl;
+            }
+        }
+        else if (toplevel == "create_folder") {
+            if(s.size() > 1) {
+                int result = CreateLocalFolder(s[1]);
+                std::cout<<" result : " << result <<std::endl;
+            }
+            else {
+                std::cout<<" usage : create_folder <path/to/folder>" << std::endl;
+            }
+        }
+        else if (toplevel == "delete_folder") {
+            if(s.size() > 1) {
+                int result = DeleteLocalFolder(s[1]);
+                std::cout<<" result : " << result <<std::endl;
+            }
+            else {
+                std::cout<<" usage : delete_folder <path/to/folder>" << std::endl;
             }
         }
         else if(toplevel == "exit") {
@@ -220,6 +255,7 @@ void Application::DisplayHelp() {
     help += " enterpass - enter passphrase \n";
     help += " poll - start polling \n";
     help += " upload - upload file \n";
+    help += " upload_folder - upload a folder \n";
     help += " exit - shutdown lib and exit \n";
     help += " help - displays help \n";
         
@@ -262,7 +298,7 @@ int Application::UploadFile(const std::string& filepath) {
     return status;
 }
 
-int Application::RemoveFile(const std::string& filepath) {
+int Application::RemoveLocalFile(const std::string& filepath) {
     int status = -1;
     std::string canonical;
     status = GetCanonicalPath(filepath, canonical);
@@ -273,18 +309,71 @@ int Application::RemoveFile(const std::string& filepath) {
     return status;
 }
 
-int Application::RenameFile(const std::string& old_filepath, const std::string& new_filename) {
+int Application::RenameLocalFile(const std::string& old_filepath, const std::string& new_filepath) {
     int status = -1;
     std::string canonical;
     status = GetCanonicalPath(old_filepath, canonical);
-    status = RenameFile(canonical.c_str(), new_filename.c_str());
+    std::cout<<" CANONICAL : " << canonical << std::endl;
+    size_t pos = canonical.rfind("/");
+    std::string local_filepath;
+    if(pos != std::string::npos) {
+        size_t pos_2 = new_filepath.rfind("/");
+        std::string filename = new_filepath.substr(pos_2);
+        std::cout<< "filename : " << filename << std::endl;
+
+        local_filepath = canonical.substr(0, pos);
+        std::cout<<" old filepath : " << local_filepath << std::endl; 
+        local_filepath += filename; 
+
+        std::cout<<" Local filepath : " << local_filepath << std::endl;
+        status = RenameFile(canonical.c_str(), local_filepath.c_str());
+
+    }
+
+    return status;
+}
+int Application::CreateLocalFolder(const std::string& folderpath) {
+    std::string canonical;
+    int status = GetCanonicalPath("./data", canonical);
+    if(!canonical.empty()) {
+        canonical += "/" + folderpath;
+        std::cout<<" folderpath : " << canonical << std::endl;
+        status = CreateFolder(canonical.c_str());
+    }
     return status;
 }
 
-int Application::RenameFolder(const std::string& old_folderpath, const std::string& new_foldername) {
-    int status = -1;
+int Application::DeleteLocalFolder(const std::string& folderpath) {
+    std::string canonical;
+    int status = GetCanonicalPath("./data", canonical);
+    if(!canonical.empty()) {
+        canonical += "/" + folderpath;
+        std::cout<<" folderpath : " << canonical << std::endl;
+        status = DeleteFolder(canonical.c_str());
+    }
+    return status;
+}
 
-    status = RenameFolder(old_folderpath.c_str(), new_foldername.c_str()); 
+int Application::RenameLocalFolder(const std::string& old_folderpath, 
+                                   const std::string& new_folderpath) {
+    int status = -1;
+    std::string canonical;
+    status = GetCanonicalPath(old_folderpath, canonical);
+    std::cout<<" CANONICAL : " << canonical << std::endl;
+    size_t pos = canonical.rfind("/");
+    std::string local_folderpath;
+    if(pos != std::string::npos) {
+        size_t pos_2 = new_folderpath.rfind("/");
+        std::string filename = new_folderpath.substr(pos_2);
+        std::cout<< "filename : " << filename << std::endl;
+
+        local_folderpath = canonical.substr(0, pos);
+        std::cout<<" old filepath : " << local_folderpath << std::endl; 
+        local_folderpath += "/this_new_folder";
+
+        std::cout<<" Local folderpath : " << local_folderpath << std::endl;
+        status = RenameFolder(canonical.c_str(), local_folderpath.c_str()); 
+    }
     return status;
 }
 
@@ -310,4 +399,32 @@ int Application::GetCanonicalPath(const std::string& path, std::string& out) {
     }
     return status;
 }
+
+void Application::UploadFolder(const std::string& folderpath) {
+    std::vector<std::string> files;
+    ScanDirectory(folderpath, files);
+    std::vector<std::string>::iterator itr = files.begin();
+    for(;itr != files.end(); itr++) {
+        int result = UploadFile(*itr);
+        std::cout<<" uploading : " << *itr << " result : " << result << std::endl;
+    }
+}
+
+void Application::ScanDirectory(const std::string& folderpath, std::vector<std::string>& paths_out) {
+    boost::filesystem::path root(folderpath);
+    if(boost::filesystem::exists(root)){
+        boost::filesystem::directory_iterator itr(root);
+        for(;itr != boost::filesystem::directory_iterator(); itr++ ){
+            if(itr->status().type() == boost::filesystem::regular_file){
+                paths_out.push_back(itr->path().string());
+            }
+            else if(itr->status().type() == boost::filesystem::directory_file) {
+                ScanDirectory(itr->path().string(), paths_out);
+            }
+        }
+    }
+}
+
+
+
 
