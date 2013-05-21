@@ -363,8 +363,13 @@ int Application::RenameLocalFolder(const std::string& old_folderpath,
     size_t pos = canonical.rfind("/");
     std::string local_folderpath;
     if(pos != std::string::npos) {
+        std::string filename;
         size_t pos_2 = new_folderpath.rfind("/");
-        std::string filename = new_folderpath.substr(pos_2);
+        if(pos_2 != std::string::npos)
+            filename = new_folderpath.substr(pos_2);
+        else
+            filename = new_folderpath;
+
         std::cout<< "filename : " << filename << std::endl;
 
         local_folderpath = canonical.substr(0, pos);
