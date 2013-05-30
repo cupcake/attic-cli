@@ -374,7 +374,8 @@ int Application::RenameLocalFolder(const std::string& old_folderpath,
 
         local_folderpath = canonical.substr(0, pos);
         std::cout<<" old filepath : " << local_folderpath << std::endl; 
-        local_folderpath += "/this_new_folder";
+        local_folderpath += "/";
+        local_folderpath += new_folderpath;
 
         std::cout<<" Local folderpath : " << local_folderpath << std::endl;
         status = RenameFolder(canonical.c_str(), local_folderpath.c_str()); 
