@@ -5,6 +5,13 @@
 #include <boost/version.hpp>
 #include "libattic.h"
 
+static void HistoryCB(int a, const char* b, int c, int d) {
+    std::cout<<" FILE HISTORY : " << std::endl;
+    std::cout<<" a : " << a << std::endl;
+    std::cout<<" b : " << b << std::endl;
+    std::cout<<" c : " << c << std::endl;
+    std::cout<<" d : " << d << std::endl;
+}
 
 static void ErrorCB(int a, int b, const char* c) {
     std::cout<<" ERROR CAUGHT IN HANDLER : " << std::endl;
@@ -185,6 +192,18 @@ void Application::ProcessCommand(split& s) {
             else {
                 std::cout<<" usage : upload <path to folder> " << std::endl;
             }
+        }
+        else if(toplevel == "history") {
+            if(s.size() > 1) {
+                std::string canonical;
+                int status = GetCanonicalPath(s[1], canonical);
+                int result = GetFileHistory(canonical.c_str(), HistoryCB);
+                std::cout<<" result : " << result <<std::endl;
+            }
+            else {
+                std::cout<<" usage : history <path to file> " << std::endl;
+            }
+
         }
         else if(toplevel == "delete") {
             if(s.size() > 1) {
