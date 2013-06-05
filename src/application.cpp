@@ -337,7 +337,8 @@ int Application::RenameLocalFile(const std::string& old_filepath, const std::str
     std::string local_filepath;
     if(pos != std::string::npos) {
         size_t pos_2 = new_filepath.rfind("/");
-        std::string filename = new_filepath.substr(pos_2);
+        if(pos_2 != std::string::npos)
+            std::string filename = new_filepath.substr(pos_2);
         std::cout<< "filename : " << filename << std::endl;
 
         local_filepath = canonical.substr(0, pos);
