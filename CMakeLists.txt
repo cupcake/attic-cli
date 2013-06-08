@@ -19,7 +19,10 @@ execute_process(COMMAND mkdir vendor/libattic/build)
 execute_process(WORKING_DIRECTORY vendor/libattic/build COMMAND cmake ..)
 execute_process(WORKING_DIRECTORY vendor/libattic/build COMMAND make -j4)
 file(GLOB libattic_lib "vendor/libattic/build/lib/libattic.a")
+
 endif(libattic_lib)
+
+file(GLOB libsodium_lib "vendor/libattic/build/libsodium-prefix/src/libsodium/src/libsodium/.libs/libsodium.a")
 
 include_directories(src)
 include_directories(vendor/libattic/build/include)
@@ -29,10 +32,14 @@ file(GLOB_RECURSE attic_cli_SOURCE "src/*.cpp")
 add_library(imp_libattic STATIC IMPORTED)
 set_property(TARGET imp_libattic PROPERTY IMPORTED_LOCATION ${libattic_lib})
 
+add_library(imp_libsodium STATIC IMPORTED)
+set_property(TARGET imp_libsodium PROPERTY IMPORTED_LOCATION ${libsodium_lib})
+
 add_executable(attic-cli ${attic_cli_SOURCE})
 
 target_link_libraries(attic-cli 
                       imp_libattic
+                      imp_libsodium
                       boost_thread
                       boost_system
                       boost_timer
