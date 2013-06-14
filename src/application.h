@@ -7,6 +7,8 @@
 #include <string>
 #include <string.h>
 
+#include "watcher.h"
+
 class Application {
     typedef std::vector<std::string> split;                                    
 
@@ -45,6 +47,7 @@ private:
     std::string entityurl_;
     bool running_;
     bool libstarted_;
+    Watcher watcher_;
 };
 
 #endif

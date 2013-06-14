@@ -258,6 +258,24 @@ void Application::ProcessCommand(split& s) {
             }
             std::cout<< "exiting ... " << std::endl;
         }
+        else if(toplevel == "start_watcher") {
+            watcher_.Initialize();
+        }
+        else if(toplevel == "add_dir_to_watcher") {
+            if(watcher_.is_init()) {
+                if(s.size() > 1) {
+                    std::string canonical;
+                    int status = GetCanonicalPath(s[1], canonical);
+                    watcher_.WatchFolder(canonical);
+                }
+            }
+            else {
+                std::cout<<" watcher not initialized " << std::endl;
+            }
+        }
+        else if(toplevel == "stop_watcher") { 
+            watcher_.Shutdown();
+        }
         else {
             std::cout<<" unknown command " << std::endl;
         }
@@ -346,7 +364,7 @@ int Application::RenameLocalFile(const std::string& old_filepath, const std::str
 
         local_filepath = canonical.substr(0, pos);
         std::cout<<" old filepath : " << local_filepath << std::endl; 
-        local_filepath += "other/";
+        local_filepath += "/";
         local_filepath += filename; 
 
         std::cout<<" Local filepath : " << local_filepath << std::endl;
