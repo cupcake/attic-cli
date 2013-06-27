@@ -5,6 +5,8 @@
 #include <boost/version.hpp>
 #include "libattic.h"
 
+static const char* g_working_dir = "./data";
+
 static void HistoryCB(int a, const char* b, int c, int d) {
     std::cout<<" FILE HISTORY : " << std::endl;
     std::cout<<" a : " << a << std::endl;
@@ -19,6 +21,15 @@ static void ErrorCB(int a, int b, const char* c) {
     std::cout<<" b : " << b << std::endl;
     std::cout<<" c : " << c << std::endl;
 }
+
+static void RequestCB(int error_code, const char* result, const char* error_string) {
+    std::ostringstream oss;
+    oss << "error code : " << error_code << std::endl;
+    oss << "result : " << result << std::endl;
+    oss << "error string : " << error_string << std::endl;
+    std::cout<< oss.str() << std::endl;
+}
+
 
 Application::Application() {
     running_ = false;
@@ -100,7 +111,7 @@ bool Application::EnterPass(const std::string& passphrase) {
 }
 
 void Application::Run(const std::string& entity) {
-    SetConfigValue("working_dir", "./data");
+    SetConfigValue("working_dir", g_working_dir);
     SetConfigValue("config_dir", "./config");
     SetConfigValue("temp_dir", "./data/temp");
     SetConfigValue("trash_path", "./data/temp"); // test trash dir
@@ -185,12 +196,22 @@ void Application::ProcessCommand(split& s) {
                 std::cout<<" usage : upload <path to file> " << std::endl;
             }
         }
+        else if (toplevel == "upload_public") {
+            if(s.size() > 1) {
+                int result = UploadPublicFile(s[1]);
+                std::cout<<" result : " << result <<std::endl;
+            }
+            else {
+                std::cout<<" usage : upload_public <path to file> " << std::endl;
+            }
+
+        }
         else if(toplevel == "upload_folder") {
             if(s.size() > 1) {
                 UploadFolder(s[1]);
             }
             else {
-                std::cout<<" usage : upload <path to folder> " << std::endl;
+                std::cout<<" usage : upload_folder <path to folder> " << std::endl;
             }
         }
         else if(toplevel == "history") {
@@ -230,6 +251,16 @@ void Application::ProcessCommand(split& s) {
             }
             else {
                 std::cout<<" usage : rename <path/to/folder> <path/to/folder>" << std::endl;
+            }
+        }
+        else if(toplevel == "download") {
+            if(s.size() > 3) {
+                int result = DownloadAtVersion(s[1], s[2], s[3]);
+                std::cout<<" result : " << result <<std::endl;
+            }
+            else {
+                std::cout<<" usage : download <post_id> <version> <destination_folder> " << std::endl;
+
             }
         }
         else if (toplevel == "create_folder") {
@@ -335,6 +366,20 @@ int Application::UploadFile(const std::string& filepath) {
     return status;
 }
 
+int Application::UploadPublicFile(const std::string& filepath) {
+    int status = -1;
+    // Get absolute path first
+    std::string canonical;
+    status = GetCanonicalPath(filepath, canonical);
+    if(!status) {
+        std::cout<<" uploading file : " << canonical << std::endl;
+        //status = PushPublicFile(canonical.c_str());                                       
+        status = CreateLimitedDownloadLink(canonical.c_str(),&RequestCB); 
+    }
+    return status;
+
+}
+
 int Application::RemoveLocalFile(const std::string& filepath) {
     int status = -1;
     std::string canonical;
@@ -351,15 +396,11 @@ int Application::RenameLocalFile(const std::string& old_filepath, const std::str
     std::string canonical;
     status = GetCanonicalPath(old_filepath, canonical);
     std::cout<<" CANONICAL : " << canonical << std::endl;
+    std::cout<<" STATUS : " << status << std::endl;
     size_t pos = canonical.rfind("/");
     std::string local_filepath;
     if(pos != std::string::npos) {
-        size_t pos_2 = new_filepath.rfind("/");
-        std::string filename;
-        if(pos_2 != std::string::npos)
-            filename = new_filepath.substr(pos_2);
-        else
-            filename = new_filepath;
+        std::string filename = new_filepath;
         std::cout<< "filename : " << filename << std::endl;
 
         local_filepath = canonical.substr(0, pos);
@@ -396,32 +437,38 @@ int Application::DeleteLocalFolder(const std::string& folderpath) {
     return status;
 }
 
+// pass in path within the working directory ex : (a/b/c to t/g/a)
+// will append the correct full path
 int Application::RenameLocalFolder(const std::string& old_folderpath, 
                                    const std::string& new_folderpath) {
     int status = -1;
     std::string canonical;
-    status = GetCanonicalPath(old_folderpath, canonical);
+    status = GetCanonicalPath(g_working_dir, canonical);
     std::cout<<" CANONICAL : " << canonical << std::endl;
-    size_t pos = canonical.rfind("/");
-    std::string local_folderpath;
-    if(pos != std::string::npos) {
-        std::string filename;
-        size_t pos_2 = new_folderpath.rfind("/");
-        if(pos_2 != std::string::npos)
-            filename = new_folderpath.substr(pos_2);
-        else
-            filename = new_folderpath;
 
-        std::cout<< "filename : " << filename << std::endl;
+    std::string old_path = canonical + "/" + old_folderpath;
 
-        local_folderpath = canonical.substr(0, pos);
-        std::cout<<" old filepath : " << local_folderpath << std::endl; 
-        local_folderpath += "/";
-        local_folderpath += new_folderpath;
+    std::cout<<" oldpath : "<< old_path << std::endl;
 
-        std::cout<<" Local folderpath : " << local_folderpath << std::endl;
-        status = RenameFolder(canonical.c_str(), local_folderpath.c_str()); 
+    if(PathExists(old_path)) {
+        std::string new_path = canonical + "/" + new_folderpath;
+        std::cout << " new path : " << new_path << std::endl;
+        status = RenameFolder(old_path.c_str(), new_path.c_str()); 
     }
+    return status;
+}
+
+int Application::DownloadAtVersion(const std::string& post_id, 
+                                   const std::string& version,
+                                   const std::string& folderpath) {
+    int status = -1;
+    std::string canonical;
+    if(GetCanonicalPath(folderpath, canonical) == 0) {
+        std::cout<<" CANONICAL : " << canonical << std::endl;
+
+        status = SaveVersion(post_id.c_str(), version.c_str(), folderpath.c_str(), &RequestCB);
+    }
+
     return status;
 }
 
@@ -432,10 +479,14 @@ int Application::StartPolling(void) {
     return status;
 }
 
+bool Application::PathExists(const std::string& path) {
+    boost::filesystem::path root(path.c_str());
+    return boost::filesystem::exists(root);
+}
+
 int Application::GetCanonicalPath(const std::string& path, std::string& out) {
     int status = -1;
     boost::filesystem::path root(path.c_str());
-
     if(boost::filesystem::exists(root)){
         boost::system::error_code error;
         boost::filesystem::path can = boost::filesystem::canonical(root, error);
@@ -449,8 +500,12 @@ int Application::GetCanonicalPath(const std::string& path, std::string& out) {
 }
 
 void Application::UploadFolder(const std::string& folderpath) {
+    std::string canonical;
+    GetCanonicalPath(folderpath, canonical);
+    std::cout<<" CANONICAL : " << canonical << std::endl;
+
     std::vector<std::string> files;
-    ScanDirectory(folderpath, files);
+    ScanDirectory(canonical, files);
     std::vector<std::string>::iterator itr = files.begin();
     for(;itr != files.end(); itr++) {
         int result = UploadFile(*itr);

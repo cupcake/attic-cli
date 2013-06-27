@@ -22,6 +22,7 @@ class Application {
     int CreateLocalFolder(const std::string& folderpath);
     int DeleteLocalFolder(const std::string& folderpath);
     int UploadFile(const std::string& filepath);
+    int UploadPublicFile(const std::string& filepath);
     int RemoveLocalFile(const std::string& filepath);
     int RenameLocalFile(const std::string& old_filepath, const std::string& new_filepath);
     int RenameLocalFolder(const std::string& old_folderpath, const std::string& new_folderpath);
@@ -33,9 +34,14 @@ class Application {
     void SplitString(const std::string& s, char delim, split& out);
     int GetCanonicalPath(const std::string& path, std::string& out);
 
+    int DownloadAtVersion(const std::string& post_id, 
+                          const std::string& version,
+                          const std::string& folderpath);
 
     void UploadFolder(const std::string& folderpath);
     void ScanDirectory(const std::string& folderpath, std::vector<std::string>& paths_out);
+
+    bool PathExists(const std::string& path);
 
 public:
     Application();
