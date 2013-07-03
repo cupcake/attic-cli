@@ -7,16 +7,6 @@
 #define EVENT_BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
 
 
-WatchEvent::WatchEvent(inotify_event* event) {
-    // Copy event locally
-    if(event) {
-        event_ = *event;
-        
-    }
-}
-
-WatchEvent::~WatchEvent() {}
-
 Watcher::Watcher() {
     worker_ = NULL;
     is_init_ = false;
