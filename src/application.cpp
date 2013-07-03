@@ -297,7 +297,7 @@ void Application::ProcessCommand(split& s) {
                 if(s.size() > 1) {
                     std::string canonical;
                     int status = GetCanonicalPath(s[1], canonical);
-                    watcher_.WatchFolder(canonical);
+                    watcher_.WatchDirectory(canonical);
                 }
             }
             else {
