@@ -1,24 +1,27 @@
 #include "watcher.h"
 
 #include <iostream>
-
+#include <boost/filesystem.hpp>
 
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
 #define EVENT_BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
 
-
-Watcher::Watcher() {
+Watcher::Watcher(EventQueue* eq) {
     worker_ = NULL;
     is_init_ = false;
+    fd_ = 0;
+    eq_ = eq;
 }
+
 Watcher::~Watcher() {}
 
 void Watcher::Initialize() {
     // Spin off background thread
     if(!worker_) {
-        worker_ = new boost::thread(&Watcher::Run, this);
         set_running(true);
+        worker_ = new boost::thread(&Watcher::Run, this);
         is_init_ = true;
+        fd_ = inotify_init();
     }
 }
 
@@ -34,25 +37,36 @@ void Watcher::Shutdown() {
 }
 
 void Watcher::Run() {
+    timer_.start();
     while(running()) {
+        // Check pending dirs
+        CheckPendingDirectories();
         // Read buffer
-        ProcessEventBuffer();
-        // Process events
+        ReadEventBuffer(); // This is blocking
        
         // sleep for a bit
         boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
     }
+    timer_.stop();
+    std::cout<<" watcher finishing " << std::endl;
 }
 
-void Watcher::ProcessEventBuffer() {
-    dir_mtx_.lock();
-    DirectoryMap::iterator itr = directories_.begin();
-    for(;itr!= directories_.end(); itr++)
-        ReadEventBuffer(itr->second.fd);
-    dir_mtx_.unlock();
+
+void Watcher::CheckPendingDirectories() {
+    pdir_mtx_.lock();
+    if(pending_directories_.size()) {
+        DirectoryMap::iterator itr = pending_directories_.begin();
+        for(;itr!=pending_directories_.end(); itr++) {
+            // copy over watch targets
+            directories_[itr->first] = itr->second;
+        }
+        pending_directories_.clear();
+    }
+    pdir_mtx_.unlock();
 }
 
-void Watcher::ProcessEventDebug(const inotify_event* event) {
+// Do this to see if we need to watch any new directories
+void Watcher::ProcessEvent(const inotify_event* event, const int wd) {
     std::cout<<" ProcessEvent ********************************************" << std::endl;
     if (event->mask & IN_ACCESS) {
         std::cout<<" IN_ACCESS " << std::endl;
@@ -66,18 +80,53 @@ void Watcher::ProcessEventDebug(const inotify_event* event) {
     }
     if (event->mask & IN_CLOSE_WRITE) {
         std::cout<<" IN_CLOSE_WRITE " << std::endl;
-        if (event->mask & IN_ISDIR) std::cout<<"\t (dir) : " << event->name << std::endl;
-        else std::cout<<"\t (file) :" << event->name << std::endl;    
+        if (event->mask & IN_ISDIR) {
+            std::cout<<"\t (dir) : " << event->name << std::endl;
+        }
+        else {
+            std::cout<<"\t (file) :" << event->name << std::endl;    
+            std::string filepath = directories_[wd].directory;
+            filepath += std::string("/") + std::string(event->name);
+            TransferMap::iterator itr = transfer_map_.find(filepath);
+            if(itr != transfer_map_.end())
+                itr->second.Reset();
+        }
     }
     if (event->mask & IN_CLOSE_NOWRITE) {
         std::cout<<" IN_CLOSE_NOWRITE " << std::endl;
-        if (event->mask & IN_ISDIR) std::cout<<"\t (dir) : " << event->name << std::endl;
-        else std::cout<<"\t (file) :" << event->name << std::endl;    
+        if (event->mask & IN_ISDIR) {
+            std::cout<<"\t (dir) : " << event->name << std::endl;
+        }
+        else {
+            std::cout<<"\t (file) :" << event->name << std::endl;    
+            std::string filepath = directories_[wd].directory;
+            filepath += std::string("/") + std::string(event->name);
+            TransferMap::iterator itr = transfer_map_.find(filepath);
+            if(itr != transfer_map_.end())
+                itr->second.Reset();
+        }
     }
     if (event->mask & IN_CREATE) {
         std::cout<<" IN_CREATE " << std::endl;
-        if (event->mask & IN_ISDIR) std::cout<<"\t (dir) : " << event->name << std::endl;
-        else std::cout<<"\t (file) :" << event->name << std::endl;    
+        if (event->mask & IN_ISDIR) {
+            std::cout<<"\t (dir) : " << event->name << std::endl;   
+            // create directory path
+            std::string dir = directories_[wd].directory;
+            dir += std::string("/") + std::string(event->name);
+            std::cout<<" new dir : " << dir << std::endl;
+            // add to watch
+            boost::filesystem::path root(dir);
+            if(boost::filesystem::exists(root)) {
+                WatchDirectoryDirectly(dir);
+            }
+        }
+        else {
+            std::string filepath = directories_[wd].directory;
+            filepath += std::string("/") + std::string(event->name);
+            std::cout<<" filepath : "<< filepath << std::endl;
+            FileMarker marker(filepath);
+            transfer_map_[filepath] = marker;
+        }
     }
     if (event->mask & IN_DELETE) {
         std::cout<<" IN_DELETE " << std::endl;
@@ -100,59 +149,146 @@ void Watcher::ProcessEventDebug(const inotify_event* event) {
         else std::cout<<"\t (file) :" << event->name << std::endl;    
     }
     if (event->mask & IN_MOVED_FROM) {
+        // remove from watching
         std::cout<<" IN_MOVED_FROM " << std::endl;
-        if (event->mask & IN_ISDIR) std::cout<<"\t (dir) : " << event->name << std::endl;
-        else std::cout<<"\t (file) :" << event->name << std::endl;    
+        if (event->mask & IN_ISDIR) {
+            std::cout<<"\t (dir) : " << event->name << std::endl;
+            std::string dir = directories_[wd].directory;
+            dir += std::string("/") + std::string(event->name);
+            rename_map_[event->cookie].from_dir = dir;
+            //UnwatchDirectory(wd);
+        }
+        else {
+            std::cout<<"\t (file) :" << event->name << std::endl;    
+            std::cout<<" cookie : " << event->cookie << std::endl;
+        }
     }
     if (event->mask & IN_MOVED_TO) {
+        // add to watching
         std::cout<<" IN_MOVED_TO " << std::endl;
-        if (event->mask & IN_ISDIR) std::cout<<"\t (dir) : " << event->name << std::endl;
-        else std::cout<<"\t (file) :" << event->name << std::endl;    
+        if (event->mask & IN_ISDIR) {
+            std::cout<<"\t (dir) : " << event->name << std::endl;
+            std::string dir = directories_[wd].directory;
+            dir += std::string("/") + std::string(event->name);
+            rename_map_[event->cookie].to_dir = dir;
+            std::cout<<" move event complete ... " << std::endl;
+            std::cout<<"\t moved dir from : " << rename_map_[event->cookie].from_dir << std::endl;
+            std::cout<<"\t moved dir to : " << rename_map_[event->cookie].to_dir << std::endl;
+            WatchDirectoryDirectly(dir);
+        }
+        else {
+            std::cout<<"\t (file) :" << event->name << std::endl;    
+            std::cout<<" cookie : " << event->cookie << std::endl;
+        }
+        // remove from rename_map_
     }
+
     if (event->mask & IN_OPEN) {
         std::cout<<" IN_OPEN " << std::endl;
-        if (event->mask & IN_ISDIR) std::cout<<"\t (dir) : " << event->name << std::endl;
-        else std::cout<<"\t (file) :" << event->name << std::endl;    
+        if (event->mask & IN_ISDIR) {
+            std::cout<<"\t (dir) : " << event->name << std::endl;
+        }
+        else {
+            std::cout<<"\t (file) :" << event->name << std::endl;    
+            std::string filepath = directories_[wd].directory;
+            filepath += std::string("/") + std::string(event->name);
+            TransferMap::iterator itr = transfer_map_.find(filepath);
+            if(itr != transfer_map_.end())
+                itr->second.Reset();
+        }
     }
     std::cout<<" *********************************************************" << std::endl;
 }
 
-void Watcher::ReadEventBuffer(int fd) {
-    if(fd > 0) {
+void Watcher::ReadEventBuffer() {
+    if(fd_ > 0) {
         char buffer[EVENT_BUF_LEN];
-        int len = read( fd, buffer, EVENT_BUF_LEN ); 
+        std::cout<<" reading event buffer for fd : " << fd_ << std::endl;
+        int len = read( fd_, buffer, EVENT_BUF_LEN );  // this read is blocking
         if(len  > -1) {
             int i = 0;
             while(i < len) {
                 inotify_event *event = reinterpret_cast<inotify_event*>(&buffer[i]);
                 if (event->len) {
-                    ProcessEventDebug(event);
+                    //ProcessEvent(event, event->wd);
+                    WatchEvent we(event, directories_[event->wd].directory);
+                    eq_->PushBack(we);
                 }
                 i += EVENT_SIZE + event->len;
+                std::cout<<" i " << std::endl;
             }
+            std::cout<<" done reading event buffer " << std::endl;
         }
         else {
             std::cout<<" read error " << std::endl;
         }
     }
+    else {
+        std::cout<< " fd is : " << fd_ << std::endl;
+    }
+}
+
+bool Watcher::UnwatchDirectory(const int wd) {
+    bool ret = false;
+    if(inotify_rm_watch(fd_, wd) == 0) {
+        ret = true;
+    }
+    else {
+        // error
+        // check errno
+    }
+    return ret;
+}
+
+bool Watcher::WatchDirectoryDirectly(const std::string& dir) {
+    bool ret = false;
+
+    if(fd_ > -1) {
+        std::cout<<" adding " << dir << " to watch " << std::endl;
+        int wd = inotify_add_watch(fd_, dir.c_str(), IN_ALL_EVENTS);
+        std::cout<<" FD : " << fd_ << std::endl;
+        std::cout<<" WD : " << wd << std::endl;
+        if(fd_ > -1) {
+            // success
+            watch_target wt;
+            wt.fd = fd_; // file descriptor shared amongst all watch targets
+            wt.wd = wd; // watch descriptor
+            wt.directory = dir;
+            directories_[wd] = wt;
+            ret = true;
+        }
+        else {
+            // error
+            // check errno
+        }
+    }
+    else { 
+        std::cout<<" error adding to watch " << std::endl;
+    }
+
+    return ret;
 }
 
 bool Watcher::WatchDirectory(const std::string& dir) {
     bool ret = false;
-    int fd = inotify_init();
-    if(fd > -1) {
+    //int fd_ = inotify_init();
+    if(fd_ > -1) {
         std::cout<<" adding " << dir << " to watch " << std::endl;
-        inotify_add_watch(fd, dir.c_str(), IN_ALL_EVENTS);
-        std::cout<<" FD : " << fd << std::endl;
-        if(fd > -1) {
+        int wd = inotify_add_watch(fd_, dir.c_str(), IN_ALL_EVENTS);
+        std::cout<<" FD : " << fd_ << std::endl;
+        std::cout<<" WD : " << wd << std::endl;
+        if(fd_ > -1) {
             // success
             watch_target wt;
-            wt.fd = fd;
+            wt.fd = fd_;
+            wt.wd = wd;
             wt.directory = dir;
 
-            dir_mtx_.lock();
-            directories_[dir] = wt;
-            dir_mtx_.unlock();
+            pdir_mtx_.lock();
+            pending_directories_[wd] = wt;
+            pdir_mtx_.unlock();
+            std::cout<<" \t success " << std::endl;
+            ret = true;
         }
         else {
             // error

@@ -5,23 +5,36 @@
 #include <map>
 #include <deque>
 #include <string>
+#include <boost/timer/timer.hpp>
 #include <boost/thread/thread.hpp>
 
+#include "eventqueue.h"
 #include "watchevent.h"
+#include "filemarker.h"
 
 class Watcher {
     struct watch_target {
         std::string directory;
         int fd;
+        int wd;
     };
 
-    void ProcessEventDebug(const inotify_event* event);
-    void ReadEventBuffer(int fd);
-    void ProcessEventBuffer();
+    struct move_event {
+        std::string from_dir;
+        std::string to_dir;
+    };
+
+    void CheckPendingDirectories();
+    void ProcessEvent(const inotify_event* event, const int wd);
+    void ReadEventBuffer();
     void ProcessEvents();
     void Run();
+
+    bool WatchDirectoryDirectly(const std::string& dir);
+    bool UnwatchDirectory(const int wd);
+
 public:
-    Watcher();
+    Watcher(EventQueue* eq);
     ~Watcher();
 
     void Initialize();
@@ -33,18 +46,33 @@ public:
 
     bool is_init() { return is_init_; }
 private:
+    // watch descriptor, watch target
+    typedef std::map<int, watch_target> DirectoryMap;
+    // cookie, move event
+    typedef std::map<int, move_event> RenameMap;
+    // filepath, file marker
+    typedef std::map<std::string, FileMarker>  TransferMap;
+
     bool is_init_;
 
     boost::mutex r_mtx_;
     bool running_;
     boost::thread*   worker_;
 
-    boost::mutex dir_mtx_;
-    typedef std::map<std::string, watch_target> DirectoryMap;
+    boost::mutex pdir_mtx_;
+    DirectoryMap pending_directories_; // directories recently appended
     DirectoryMap directories_; // directories to watch
 
+    RenameMap rename_map_;
+
+    TransferMap transfer_map_; // queue for large file transfers
+
     boost::mutex fd_mtx_;
-    int fd_; // file descriptor
+    int fd_; // file descriptor, one file descriptor can be associated with many watch descriptors
+    
+    boost::timer::cpu_timer timer_; 
+
+    EventQueue* eq_;
 };
 
 #endif
