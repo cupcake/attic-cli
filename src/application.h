@@ -8,6 +8,8 @@
 #include <string.h>
 
 #include "watcher.h"
+#include "eventqueue.h"
+#include "eventcaller.h"
 
 class Application {
     typedef std::vector<std::string> split;                                    
@@ -53,7 +55,11 @@ private:
     std::string entityurl_;
     bool running_;
     bool libstarted_;
-    Watcher watcher_;
+    EventQueue eq_;
+
+    EventCaller* ec_;
+    Watcher* watcher_;
+
 };
 
 #endif

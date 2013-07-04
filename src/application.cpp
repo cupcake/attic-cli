@@ -34,6 +34,8 @@ static void RequestCB(int error_code, const char* result, const char* error_stri
 Application::Application() {
     running_ = false;
     libstarted_ = false;
+    watcher_ = NULL;
+    ec_ = NULL;
 }
 
 Application::~Application() {}
@@ -290,14 +292,17 @@ void Application::ProcessCommand(split& s) {
             std::cout<< "exiting ... " << std::endl;
         }
         else if(toplevel == "start_watcher") {
-            watcher_.Initialize();
+            watcher_ = new Watcher(&eq_);
+            ec_ = new EventCaller(&eq_);
+            ec_->Initialize();
+            watcher_->Initialize();
         }
         else if(toplevel == "add_dir_to_watcher") {
-            if(watcher_.is_init()) {
+            if(watcher_->is_init()) {
                 if(s.size() > 1) {
                     std::string canonical;
                     int status = GetCanonicalPath(s[1], canonical);
-                    watcher_.WatchDirectory(canonical);
+                    watcher_->WatchDirectory(canonical);
                 }
             }
             else {
@@ -305,7 +310,16 @@ void Application::ProcessCommand(split& s) {
             }
         }
         else if(toplevel == "stop_watcher") { 
-            watcher_.Shutdown();
+            if(watcher_) {
+                watcher_->Shutdown();
+                delete watcher_;
+                watcher_ = NULL;
+            }
+            if(ec_) {
+                ec_->Shutdown();
+                delete ec_;
+                ec_ = NULL;
+            }
         }
         else {
             std::cout<<" unknown command " << std::endl;
