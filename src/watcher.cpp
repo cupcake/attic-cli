@@ -215,7 +215,6 @@ void Watcher::ReadEventBuffer() {
                     eq_->PushBack(we);
                 }
                 i += EVENT_SIZE + event->len;
-                std::cout<<" i " << std::endl;
             }
             std::cout<<" done reading event buffer " << std::endl;
         }
