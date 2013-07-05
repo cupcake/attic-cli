@@ -167,6 +167,7 @@ void EventCaller::ProcessEvent(const WatchEvent event) {
             std::string dir = event.directory();
             dir += std::string("/") + std::string(event.event()->name);
             rename_map_[event.event()->cookie].to_dir = dir;
+
             std::cout<<" move event complete ... " << std::endl;
             std::cout<<"\t moved dir from : " << rename_map_[event.event()->cookie].from_dir << std::endl;
             std::cout<<"\t moved dir to : " << rename_map_[event.event()->cookie].to_dir << std::endl;

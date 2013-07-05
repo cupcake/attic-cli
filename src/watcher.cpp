@@ -3,6 +3,8 @@
 #include <iostream>
 #include <boost/filesystem.hpp>
 
+#include "libattic.h"
+
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
 #define EVENT_BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
 
@@ -118,7 +120,10 @@ void Watcher::ProcessEvent(const inotify_event* event, const int wd) {
             boost::filesystem::path root(dir);
             if(boost::filesystem::exists(root)) {
                 WatchDirectoryDirectly(dir);
+                // call into lib TEMPORARY
+                int status = CreateFolder(dir.c_str());
             }
+            
         }
         else {
             std::string filepath = directories_[wd].directory;
@@ -175,6 +180,17 @@ void Watcher::ProcessEvent(const inotify_event* event, const int wd) {
             std::cout<<"\t moved dir from : " << rename_map_[event->cookie].from_dir << std::endl;
             std::cout<<"\t moved dir to : " << rename_map_[event->cookie].to_dir << std::endl;
             WatchDirectoryDirectly(dir);
+
+            // call into lib TEMPRORAY
+            if(!rename_map_[event->cookie].from_dir.empty() && 
+               !rename_map_[event->cookie].to_dir.empty()) {
+                int status = RenameFolder(rename_map_[event->cookie].from_dir.c_str(),
+                                          rename_map_[event->cookie].to_dir.c_str()); 
+            }
+            else if(!rename_map_[event->cookie].from_dir.empty() && 
+                    !rename_map_[event->cookie].to_dir.empty()) {
+                int status = CreateFolder(rename_map_[event->cookie].to_dir.c_str());
+            }
         }
         else {
             std::cout<<"\t (file) :" << event->name << std::endl;    
@@ -209,22 +225,10 @@ void Watcher::ReadEventBuffer() {
             int i = 0;
             while(i < len) {
                 inotify_event *event = reinterpret_cast<inotify_event*>(&buffer[i]);
-                inotify_event tmp;
-                tmp.wd = event->wd;
-                tmp.mask = event->mask;
-                tmp.cookie = event->cookie;
-                tmp.len = event->len;
-                strcpy(tmp.name, event->name);
-
-                std::cout<<" copied name : "<< tmp.name << std::endl;
-
-                if (tmp.len) {
-                    ProcessEvent(&tmp, tmp.wd);
-                    std::cout<<" creating watch event for dir : " << directories_[tmp.wd].directory << std::endl;
-                    WatchEvent we(&tmp, directories_[tmp.wd].directory);
-                    eq_->PushBack(we);
+                if (event->len) {
+                    ProcessEvent(event, event->wd);
                 }
-                i += EVENT_SIZE + tmp.len;
+                i += EVENT_SIZE + event->len;
             }
             std::cout<<" done reading event buffer " << std::endl;
         }
