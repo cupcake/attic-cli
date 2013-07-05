@@ -9,6 +9,8 @@ class WatchEvent {
 public:
     WatchEvent(inotify_event* event,
                const std::string& directory);
+
+    WatchEvent(const WatchEvent& rhs);
     ~WatchEvent();
 
     const inotify_event* event() const { return &event_; }
@@ -18,7 +20,7 @@ private:
 
     bool is_file_;
 
-    struct inotify_event event_;
+    inotify_event event_;
 };
 
 

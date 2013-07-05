@@ -63,12 +63,12 @@ void EventCaller::ProcessEventQueue() {
     std::deque<WatchEvent>::iterator itr = event_queue_.begin();
     for(;itr!=event_queue_.end(); itr++) { 
         ProcessEvent(*itr);
-        event_queue_.erase(itr);
     }
+    event_queue_.clear();
 }
 
 void EventCaller::ProcessEvent(const WatchEvent event) {
-    std::cout<<" ProcessEvent ********************************************" << std::endl;
+    std::cout<<" Event Caller ProcessEvent ********************************************" << std::endl;
     if (event.event()->mask & IN_ACCESS) {
         std::cout<<" IN_ACCESS " << std::endl;
         if (event.event()->mask & IN_ISDIR) std::cout<<"\t (dir) : " << event.event()->name << std::endl;

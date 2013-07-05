@@ -12,7 +12,7 @@ public:
     EventQueue() {}
     ~EventQueue() {}
 
-    void PushBack(const WatchEvent event) {
+    void PushBack(const WatchEvent& event) {
         eq_mtx_.lock();
         event_queue_.push_back(event);
         eq_mtx_.unlock();

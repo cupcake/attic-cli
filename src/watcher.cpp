@@ -209,12 +209,22 @@ void Watcher::ReadEventBuffer() {
             int i = 0;
             while(i < len) {
                 inotify_event *event = reinterpret_cast<inotify_event*>(&buffer[i]);
-                if (event->len) {
-                    ProcessEvent(event, event->wd);
-                    WatchEvent we(event, directories_[event->wd].directory);
+                inotify_event tmp;
+                tmp.wd = event->wd;
+                tmp.mask = event->mask;
+                tmp.cookie = event->cookie;
+                tmp.len = event->len;
+                strcpy(tmp.name, event->name);
+
+                std::cout<<" copied name : "<< tmp.name << std::endl;
+
+                if (tmp.len) {
+                    ProcessEvent(&tmp, tmp.wd);
+                    std::cout<<" creating watch event for dir : " << directories_[tmp.wd].directory << std::endl;
+                    WatchEvent we(&tmp, directories_[tmp.wd].directory);
                     eq_->PushBack(we);
                 }
-                i += EVENT_SIZE + event->len;
+                i += EVENT_SIZE + tmp.len;
             }
             std::cout<<" done reading event buffer " << std::endl;
         }
