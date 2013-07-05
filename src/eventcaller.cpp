@@ -54,7 +54,6 @@ void EventCaller::UpdateTransferMap() {
     boost::timer::cpu_times time = timer_.elapsed();                     
     boost::timer::nanosecond_type const elapsed(time.user);
 
-    std::cout<<" transfer map size : " << transfer_map_.size() << std::endl;
     TransferMap::iterator itr = transfer_map_.begin();
     for(;itr!=transfer_map_.end();itr++)
         itr->second.Update(elapsed);
@@ -64,13 +63,11 @@ void EventCaller::ProcessEventQueue() {
     std::deque<WatchEvent>::iterator itr = event_queue_.begin();
     for(;itr!=event_queue_.end(); itr++) { 
         ProcessEvent(*itr);
-        std::deque<WatchEvent>::iterator hold = (itr-1);
         event_queue_.erase(itr);
-        itr = hold;
     }
 }
 
-void EventCaller::ProcessEvent(const WatchEvent& event) {
+void EventCaller::ProcessEvent(const WatchEvent event) {
     std::cout<<" ProcessEvent ********************************************" << std::endl;
     if (event.event()->mask & IN_ACCESS) {
         std::cout<<" IN_ACCESS " << std::endl;
@@ -118,11 +115,6 @@ void EventCaller::ProcessEvent(const WatchEvent& event) {
             std::string dir = event.directory();
             dir += std::string("/") + std::string(event.event()->name);
             std::cout<<" new dir : " << dir << std::endl;
-            // add to watch
-            boost::filesystem::path root(dir);
-            if(boost::filesystem::exists(root)) {
-                //WatchDirectoryDirectly(dir);
-            }
         }
         else {
             std::string filepath = event.directory();

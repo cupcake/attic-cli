@@ -18,7 +18,7 @@ class EventCaller {
     void Run();
     void RetrieveEvents();
     void ProcessEventQueue();
-    void ProcessEvent(const WatchEvent& event);
+    void ProcessEvent(const WatchEvent event);
     void UpdateTransferMap();
 public:
     EventCaller(EventQueue* eq);

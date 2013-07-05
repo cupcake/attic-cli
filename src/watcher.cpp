@@ -210,7 +210,7 @@ void Watcher::ReadEventBuffer() {
             while(i < len) {
                 inotify_event *event = reinterpret_cast<inotify_event*>(&buffer[i]);
                 if (event->len) {
-                    //ProcessEvent(event, event->wd);
+                    ProcessEvent(event, event->wd);
                     WatchEvent we(event, directories_[event->wd].directory);
                     eq_->PushBack(we);
                 }

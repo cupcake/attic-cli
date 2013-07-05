@@ -15,8 +15,10 @@ public:
     const std::string& directory() const { return directory_; }
 private:
     std::string directory_;
-    inotify_event event_;
+
     bool is_file_;
+
+    struct inotify_event event_;
 };
 
 
