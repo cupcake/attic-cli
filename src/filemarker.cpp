@@ -18,22 +18,21 @@ FileMarker::FileMarker(const std::string& path) {
 FileMarker::~FileMarker() {}
 
 void FileMarker::ResetElapsed() {
-    std::cout<<" reseting marker for file : " << path_ << std::endl;
     elapsed_ = 0;
 }
 
 void FileMarker::Update(long dt) {
     elapsed_ += dt;
-    std::cout<<" update elapsed : " << elapsed_ << std::endl;
+    //std::cout<<" update elapsed : " << elapsed_ << std::endl;
     if(elapsed_ > limit && (state_ == IS_CLOSED)) {
-        std::cout<<" FILE TRANSFER DONE : " << path_ << std::endl;
+        //std::cout<<" FILE TRANSFER DONE : " << path_ << std::endl;
         // set close state
         state_ = DONE;
-        std::cout<<" am i done ? : " << IsDone() << std::endl;
+        //std::cout<<" am i done ? : " << IsDone() << std::endl;
     }
     else {
-        std::cout<<" CURRENT STATE : " << state_ << std::endl;
-        ResetElapsed();
+        //std::cout<<" CURRENT STATE : " << state_ << std::endl;
+        //std::cout<<" for path : " << path_ << std::endl;
     }
 }
 

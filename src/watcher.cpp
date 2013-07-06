@@ -3,7 +3,7 @@
 #include <iostream>
 #include <boost/filesystem.hpp>
 
-#include "libattic.h"
+#include "libcaller.h"
 
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
 #define EVENT_BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
@@ -36,6 +36,8 @@ void Watcher::Shutdown() {
         worker_ = NULL;
         is_init_ = false;
     }
+
+    LibCaller::instance()->Shutdown();
 }
 
 void Watcher::Run() {
@@ -61,6 +63,7 @@ void Watcher::CheckPendingDirectories() {
         for(;itr!=pending_directories_.end(); itr++) {
             // copy over watch targets
             directories_[itr->first] = itr->second;
+            ScanDirectory(itr->second.directory);
         }
         pending_directories_.clear();
     }
@@ -69,145 +72,190 @@ void Watcher::CheckPendingDirectories() {
 
 // Do this to see if we need to watch any new directories
 void Watcher::ProcessEvent(const inotify_event* event, const int wd) {
-    std::cout<<" ProcessEvent ********************************************" << std::endl;
+    std::ostringstream oss;
+    oss <<" ProcessEvent ********************************************" << std::endl;
+
+    /*
     if (event->mask & IN_ACCESS) {
-        std::cout<<" IN_ACCESS " << std::endl;
-        if (event->mask & IN_ISDIR) std::cout<<"\t (dir) : " << event->name << std::endl;
-        else std::cout<<"\t (file) :" << event->name << std::endl;
+        oss <<" IN_ACCESS " << std::endl;
+        if (event->mask & IN_ISDIR) oss<<"\t (dir) : " << event->name << std::endl;
+        else oss <<"\t (file) :" << event->name << std::endl;
     }
     if (event->mask & IN_ATTRIB) {
-        std::cout<<" IN_ATTRIB " << std::endl;
-        if (event->mask & IN_ISDIR) std::cout<<"\t (dir) : " << event->name << std::endl;
-        else std::cout<<"\t (file) :" << event->name << std::endl;    
+        oss <<" IN_ATTRIB " << std::endl;
+        if (event->mask & IN_ISDIR) oss<<"\t (dir) : " << event->name << std::endl;
+        else oss <<"\t (file) :" << event->name << std::endl;    
     }
+    */
     if (event->mask & IN_CLOSE_WRITE) {
-        std::cout<<" IN_CLOSE_WRITE " << std::endl;
+        oss <<" IN_CLOSE_WRITE " << std::endl;
         if (event->mask & IN_ISDIR) {
-            std::cout<<"\t (dir) : " << event->name << std::endl;
+     //       oss<<"\t (dir) : " << event->name << std::endl;
         }
         else {
-            std::cout<<"\t (file) :" << event->name << std::endl;    
+      //      oss<<"\t (file) :" << event->name << std::endl;    
             std::string filepath = directories_[wd].directory;
             filepath += std::string("/") + std::string(event->name);
             fw_->SetMarkerClosed(filepath);
         }
     }
     if (event->mask & IN_CLOSE_NOWRITE) {
-        std::cout<<" IN_CLOSE_NOWRITE " << std::endl;
+        oss<<" IN_CLOSE_NOWRITE " << std::endl;
         if (event->mask & IN_ISDIR) {
-            std::cout<<"\t (dir) : " << event->name << std::endl;
+        //    oss<<"\t (dir) : " << event->name << std::endl;
         }
         else {
-            std::cout<<"\t (file) :" << event->name << std::endl;    
+            //oss<<"\t (file) :" << event->name << std::endl;    
             std::string filepath = directories_[wd].directory;
             filepath += std::string("/") + std::string(event->name);
+            //oss<<" filepath : " << filepath << std::endl;
             fw_->SetMarkerClosed(filepath);
         }
     }
     if (event->mask & IN_CREATE) {
-        std::cout<<" IN_CREATE " << std::endl;
+        //oss<<" IN_CREATE " << std::endl;
         if (event->mask & IN_ISDIR) {
-            std::cout<<"\t (dir) : " << event->name << std::endl;   
             // create directory path
             std::string dir = directories_[wd].directory;
             dir += std::string("/") + std::string(event->name);
-            std::cout<<" new dir : " << dir << std::endl;
             // add to watch
             boost::filesystem::path root(dir);
             if(boost::filesystem::exists(root)) {
                 WatchDirectoryDirectly(dir);
                 // call into lib TEMPORARY
-                int status = CreateFolder(dir.c_str());
+                oss << " Create Folder : " << dir << std::endl;
+                LibCaller::instance()->LibCreateFolder(dir.c_str());
             }
             
         }
         else {
             std::string filepath = directories_[wd].directory;
             filepath += std::string("/") + std::string(event->name);
-            std::cout<<" filepath : "<< filepath << std::endl;
-            FileMarker marker(filepath);
-            fw_->PushBack(marker);
+            oss<<" filepath : "<< filepath << std::endl;
+            if(boost::filesystem::exists(filepath))
+                fw_->SetMarkerOpen(filepath);
         }
     }
     if (event->mask & IN_DELETE) {
-        std::cout<<" IN_DELETE " << std::endl;
-        if (event->mask & IN_ISDIR) std::cout<<"\t (dir) : " << event->name << std::endl;
-        else std::cout<<"\t (file) :" << event->name << std::endl;    
+        oss<<" IN_DELETE " << std::endl;
+        if (event->mask & IN_ISDIR) oss<<"\t (dir) : " << event->name << std::endl;
+        else oss<<"\t (file) :" << event->name << std::endl;    
     }
     if (event->mask & IN_DELETE_SELF) {
-        std::cout<<" IN_DELETE_SELF " << std::endl;
-        if (event->mask & IN_ISDIR) std::cout<<"\t (dir) : " << event->name << std::endl;
-        else std::cout<<"\t (file) :" << event->name << std::endl;    
+        oss<<" IN_DELETE_SELF " << std::endl;
+        if (event->mask & IN_ISDIR) oss<<"\t (dir) : " << event->name << std::endl;
+        else oss<<"\t (file) :" << event->name << std::endl;    
     }
     if (event->mask & IN_MODIFY) {
-        std::cout<<" IN_MODIFY " << std::endl;
-        if (event->mask & IN_ISDIR) std::cout<<"\t (dir) : " << event->name << std::endl;
-        else std::cout<<"\t (file) :" << event->name << std::endl;    
+        oss<<" IN_MODIFY " << std::endl;
+        if (event->mask & IN_ISDIR) oss<<"\t (dir) : " << event->name << std::endl;
+        else oss<<"\t (file) :" << event->name << std::endl;    
     }
     if (event->mask & IN_MOVE_SELF) {
-        std::cout<<" IN_MOVE_SELF " << std::endl;
-        if (event->mask & IN_ISDIR) std::cout<<"\t (dir) : " << event->name << std::endl;
-        else std::cout<<"\t (file) :" << event->name << std::endl;    
+        oss<<" IN_MOVE_SELF " << std::endl;
+        if (event->mask & IN_ISDIR) oss<<"\t (dir) : " << event->name << std::endl;
+        else oss<<"\t (file) :" << event->name << std::endl;    
     }
     if (event->mask & IN_MOVED_FROM) {
         // remove from watching
-        std::cout<<" IN_MOVED_FROM " << std::endl;
+        //oss<<" IN_MOVED_FROM " << std::endl;
         if (event->mask & IN_ISDIR) {
-            std::cout<<"\t (dir) : " << event->name << std::endl;
+            //oss<<"\t (dir) : " << event->name << std::endl;
             std::string dir = directories_[wd].directory;
             dir += std::string("/") + std::string(event->name);
             rename_map_[event->cookie].from_dir = dir;
             //UnwatchDirectory(wd);
         }
         else {
-            std::cout<<"\t (file) :" << event->name << std::endl;    
-            std::cout<<" cookie : " << event->cookie << std::endl;
+            //oss<<"\t (file) :" << event->name << std::endl;    
+            //oss<<" cookie : " << event->cookie << std::endl;
+
+            //oss<<"\t (dir) : " << event->name << std::endl;
+            std::string dir = directories_[wd].directory;
+            dir += std::string("/") + std::string(event->name);
+            rename_map_[event->cookie].from_dir = dir;
+ 
         }
     }
     if (event->mask & IN_MOVED_TO) {
         // add to watching
-        std::cout<<" IN_MOVED_TO " << std::endl;
+        //oss<<" IN_MOVED_TO " << std::endl;
         if (event->mask & IN_ISDIR) {
-            std::cout<<"\t (dir) : " << event->name << std::endl;
+            //oss<<"\t (dir) : " << event->name << std::endl;
             std::string dir = directories_[wd].directory;
             dir += std::string("/") + std::string(event->name);
             rename_map_[event->cookie].to_dir = dir;
-            std::cout<<" move event complete ... " << std::endl;
-            std::cout<<"\t moved dir from : " << rename_map_[event->cookie].from_dir << std::endl;
-            std::cout<<"\t moved dir to : " << rename_map_[event->cookie].to_dir << std::endl;
+            //oss<<" move event complete ... " << std::endl;
+            //oss<<"\t moved dir from : " << rename_map_[event->cookie].from_dir << std::endl;
+            //oss<<"\t moved dir to : " << rename_map_[event->cookie].to_dir << std::endl;
             WatchDirectoryDirectly(dir);
 
             // call into lib TEMPRORAY
             if(!rename_map_[event->cookie].from_dir.empty() && 
                !rename_map_[event->cookie].to_dir.empty()) {
-                int status = RenameFolder(rename_map_[event->cookie].from_dir.c_str(),
+                LibCaller::instance()->LibRenameFolder(rename_map_[event->cookie].from_dir.c_str(),
                                           rename_map_[event->cookie].to_dir.c_str()); 
+                
             }
             else if(!rename_map_[event->cookie].from_dir.empty() && 
                     !rename_map_[event->cookie].to_dir.empty()) {
-                int status = CreateFolder(rename_map_[event->cookie].to_dir.c_str());
+                LibCaller::instance()->LibCreateFolder(rename_map_[event->cookie].to_dir.c_str());
             }
         }
         else {
-            std::cout<<"\t (file) :" << event->name << std::endl;    
-            std::cout<<" cookie : " << event->cookie << std::endl;
+            /*
+            oss<<"\t (file) :" << event->name << std::endl;    
+            oss<<" cookie : " << event->cookie << std::endl;
+            oss<<"\t (dir) : " << event->name << std::endl;
+            */
+            std::string dir = directories_[wd].directory;
+            dir += std::string("/") + std::string(event->name);
+            rename_map_[event->cookie].to_dir = dir;
+            /*
+            oss<<" move event complete ... " << std::endl;
+            oss<<"\t moved dir from : " << rename_map_[event->cookie].from_dir << std::endl;
+            oss<<"\t moved dir to : " << rename_map_[event->cookie].to_dir << std::endl;
+            */
+
+            // call into lib TEMPRORAY
+            if(!rename_map_[event->cookie].from_dir.empty() && 
+               !rename_map_[event->cookie].to_dir.empty()) {
+                LibCaller::instance()->LibRenameFile(rename_map_[event->cookie].from_dir.c_str(),
+                                        rename_map_[event->cookie].to_dir.c_str()); 
+                fw_->SetMarkerClosed(rename_map_[event->cookie].from_dir.c_str());
+            }
+            else if(!rename_map_[event->cookie].from_dir.empty() && 
+                    !rename_map_[event->cookie].to_dir.empty()) {
+                LibCaller::instance()->LibUploadFile(rename_map_[event->cookie].to_dir.c_str());
+                fw_->SetMarkerClosed(rename_map_[event->cookie].to_dir.c_str());
+            }
+
+ 
         }
         // remove from rename_map_
     }
 
     if (event->mask & IN_OPEN) {
-        std::cout<<" IN_OPEN " << std::endl;
+        //oss<<" IN_OPEN " << std::endl;
         if (event->mask & IN_ISDIR) {
-            std::cout<<"\t (dir) : " << event->name << std::endl;
+            //oss<<"\t (dir) : " << event->name << std::endl;
         }
         else {
-            std::cout<<"\t (file) :" << event->name << std::endl;    
+            /*
+            oss<<"\t (file) :" << event->name << std::endl;    
+            oss<<"\t (wd) : " << wd << std::endl;
+            */
             std::string filepath = directories_[wd].directory;
             filepath += std::string("/") + std::string(event->name);
-            fw_->SetMarkerOpen(filepath);
+            //oss<<" filepath : " << filepath << std::endl;
+            // make sure file exists
+            /*
+            if(boost::filesystem::exists(filepath))
+                fw_->SetMarkerOpen(filepath);
+                */
         }
     }
-    std::cout<<" *********************************************************" << std::endl;
+    oss<<" *********************************************************" << std::endl;
 }
 
 void Watcher::ReadEventBuffer() {
@@ -320,5 +368,18 @@ bool Watcher::running() {
     bool r = running_;
     r_mtx_.unlock();
     return r;
+}
+
+void Watcher::ScanDirectory(const std::string& folderpath) {
+    boost::filesystem::path root(folderpath);
+    if(boost::filesystem::exists(root)){
+        boost::filesystem::directory_iterator itr(root);
+        for(;itr != boost::filesystem::directory_iterator(); itr++ ){
+            if(itr->status().type() == boost::filesystem::directory_file){
+                WatchDirectoryDirectly(itr->path().string());
+                ScanDirectory(itr->path().string());
+            }
+        }
+    }
 }
 

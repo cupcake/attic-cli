@@ -33,6 +33,9 @@ class Watcher {
     bool WatchDirectoryDirectly(const std::string& dir);
     bool UnwatchDirectory(const int wd);
 
+
+    // Scan directory for other directories
+    void ScanDirectory(const std::string& folderpath);
 public:
     Watcher(FileWatcher* fw);
     ~Watcher();

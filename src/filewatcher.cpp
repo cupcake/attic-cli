@@ -1,5 +1,8 @@
 #include "filewatcher.h"
 
+
+#include "libcaller.h"
+
 static boost::timer::nanosecond_type const limit(1 * 100000000LL); 
 FileWatcher::FileWatcher() {
     thread_ = NULL;
@@ -36,7 +39,6 @@ void FileWatcher::Run() {
         boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
     }
     timer_.stop();
-
 }
 
 void FileWatcher::Update() {
@@ -58,8 +60,12 @@ void FileWatcher::Update() {
             else
                 itr = hold;
                 */
+            // call into lib
+           
+            // remove from map
+            std::cout<<" Pushing file : " << itr->second.path() << std::endl;
+            LibCaller::instance()->LibUploadFile(itr->second.path());
             transfer_map_.erase(itr);
-            std::cout<<" transfer_map size : "<< transfer_map_.size() << std::endl;
         }
         else {
             itr->second.Update(elapsed);
@@ -98,6 +104,14 @@ void FileWatcher::SetMarkerOpen(const std::string& filepath) {
     TransferMap::iterator itr = transfer_map_.find(filepath);
     if(itr != transfer_map_.end())
         itr->second.SetOpen();
+    else {
+        FileMarker marker(filepath); 
+        transfer_map_[filepath] = marker;
+        itr = transfer_map_.find(filepath);
+        if(itr != transfer_map_.end()) { 
+            itr->second.SetOpen();
+        }
+    }
     tm_mtx_.unlock();
 }
 
@@ -106,6 +120,11 @@ void FileWatcher::SetMarkerClosed(const std::string& filepath) {
     TransferMap::iterator itr = transfer_map_.find(filepath);
     if(itr != transfer_map_.end())
         itr->second.SetClosed();
+    else {
+        itr = transfer_map_.begin();
+        for(;itr!= transfer_map_.end(); itr++) 
+            std::cout<< "\t" << itr->first << std::endl;
+    }
     tm_mtx_.unlock();
 }
 

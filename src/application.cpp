@@ -115,8 +115,8 @@ bool Application::EnterPass(const std::string& passphrase) {
 void Application::Run(const std::string& entity) {
     SetConfigValue("working_dir", g_working_dir);
     SetConfigValue("config_dir", "./config");
-    SetConfigValue("temp_dir", "./data/temp");
-    SetConfigValue("trash_path", "./data/temp"); // test trash dir
+    SetConfigValue("temp_dir", "./temp");
+    SetConfigValue("trash_path", "./temp"); // test trash dir
     SetConfigValue("entity_url", entity.c_str());
     entityurl_= entity;
 
@@ -297,6 +297,14 @@ void Application::ProcessCommand(split& s) {
 
             file_watcher_->Initialize();
             watcher_->Initialize();
+
+            if(watcher_->is_init()) {
+                if(s.size() > 1) {
+                    std::string canonical;
+                    int status = GetCanonicalPath(s[1], canonical);
+                    watcher_->WatchDirectory(canonical);
+                }
+            }
         }
         else if(toplevel == "add_dir_to_watcher") {
             if(watcher_->is_init()) {
