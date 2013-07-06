@@ -8,9 +8,9 @@
 #include <boost/timer/timer.hpp>
 #include <boost/thread/thread.hpp>
 
-#include "eventqueue.h"
 #include "watchevent.h"
 #include "filemarker.h"
+#include "filewatcher.h"
 
 class Watcher {
     struct watch_target {
@@ -34,7 +34,7 @@ class Watcher {
     bool UnwatchDirectory(const int wd);
 
 public:
-    Watcher(EventQueue* eq);
+    Watcher(FileWatcher* fw);
     ~Watcher();
 
     void Initialize();
@@ -51,7 +51,6 @@ private:
     // cookie, move event
     typedef std::map<int, move_event> RenameMap;
     // filepath, file marker
-    typedef std::map<std::string, FileMarker>  TransferMap;
 
     bool is_init_;
 
@@ -65,14 +64,12 @@ private:
 
     RenameMap rename_map_;
 
-    TransferMap transfer_map_; // queue for large file transfers
-
     boost::mutex fd_mtx_;
     int fd_; // file descriptor, one file descriptor can be associated with many watch descriptors
     
     boost::timer::cpu_timer timer_; 
 
-    EventQueue* eq_;
+    FileWatcher* fw_;
 };
 
 #endif

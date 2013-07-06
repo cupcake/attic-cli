@@ -9,7 +9,6 @@
 
 #include "watcher.h"
 #include "eventqueue.h"
-#include "eventcaller.h"
 
 class Application {
     typedef std::vector<std::string> split;                                    
@@ -57,7 +56,7 @@ private:
     bool libstarted_;
     EventQueue eq_;
 
-    EventCaller* ec_;
+    FileWatcher* file_watcher_;
     Watcher* watcher_;
 
 };

@@ -35,7 +35,7 @@ Application::Application() {
     running_ = false;
     libstarted_ = false;
     watcher_ = NULL;
-    ec_ = NULL;
+    file_watcher_ = NULL;
 }
 
 Application::~Application() {}
@@ -292,9 +292,10 @@ void Application::ProcessCommand(split& s) {
             std::cout<< "exiting ... " << std::endl;
         }
         else if(toplevel == "start_watcher") {
-            watcher_ = new Watcher(&eq_);
-            ec_ = new EventCaller(&eq_);
-            ec_->Initialize();
+            file_watcher_ = new FileWatcher();
+            watcher_ = new Watcher(file_watcher_);
+
+            file_watcher_->Initialize();
             watcher_->Initialize();
         }
         else if(toplevel == "add_dir_to_watcher") {
@@ -315,10 +316,10 @@ void Application::ProcessCommand(split& s) {
                 delete watcher_;
                 watcher_ = NULL;
             }
-            if(ec_) {
-                ec_->Shutdown();
-                delete ec_;
-                ec_ = NULL;
+            if(file_watcher_) {
+                file_watcher_->Shutdown();
+                delete file_watcher_;
+                file_watcher_ = NULL;
             }
         }
         else {

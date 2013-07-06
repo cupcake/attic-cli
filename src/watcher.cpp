@@ -8,11 +8,11 @@
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
 #define EVENT_BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
 
-Watcher::Watcher(EventQueue* eq) {
+Watcher::Watcher(FileWatcher* fw) {
     worker_ = NULL;
     is_init_ = false;
     fd_ = 0;
-    eq_ = eq;
+    fw_ = fw;
 }
 
 Watcher::~Watcher() {}
@@ -89,9 +89,7 @@ void Watcher::ProcessEvent(const inotify_event* event, const int wd) {
             std::cout<<"\t (file) :" << event->name << std::endl;    
             std::string filepath = directories_[wd].directory;
             filepath += std::string("/") + std::string(event->name);
-            TransferMap::iterator itr = transfer_map_.find(filepath);
-            if(itr != transfer_map_.end())
-                itr->second.Reset();
+            fw_->SetMarkerClosed(filepath);
         }
     }
     if (event->mask & IN_CLOSE_NOWRITE) {
@@ -103,9 +101,7 @@ void Watcher::ProcessEvent(const inotify_event* event, const int wd) {
             std::cout<<"\t (file) :" << event->name << std::endl;    
             std::string filepath = directories_[wd].directory;
             filepath += std::string("/") + std::string(event->name);
-            TransferMap::iterator itr = transfer_map_.find(filepath);
-            if(itr != transfer_map_.end())
-                itr->second.Reset();
+            fw_->SetMarkerClosed(filepath);
         }
     }
     if (event->mask & IN_CREATE) {
@@ -130,7 +126,7 @@ void Watcher::ProcessEvent(const inotify_event* event, const int wd) {
             filepath += std::string("/") + std::string(event->name);
             std::cout<<" filepath : "<< filepath << std::endl;
             FileMarker marker(filepath);
-            transfer_map_[filepath] = marker;
+            fw_->PushBack(marker);
         }
     }
     if (event->mask & IN_DELETE) {
@@ -208,9 +204,7 @@ void Watcher::ProcessEvent(const inotify_event* event, const int wd) {
             std::cout<<"\t (file) :" << event->name << std::endl;    
             std::string filepath = directories_[wd].directory;
             filepath += std::string("/") + std::string(event->name);
-            TransferMap::iterator itr = transfer_map_.find(filepath);
-            if(itr != transfer_map_.end())
-                itr->second.Reset();
+            fw_->SetMarkerOpen(filepath);
         }
     }
     std::cout<<" *********************************************************" << std::endl;
