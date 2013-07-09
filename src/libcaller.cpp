@@ -41,8 +41,13 @@ void LibCaller::LibUploadFile(const std::string& filepath) {
 }
 
 void LibCaller::LibRenameFile(const std::string& old_path, const std::string& new_path) {
-    if(!IsHiddenFile(new_path))
-        RenameFile(old_path.c_str(), new_path.c_str());
+    if(!IsHiddenFile(old_path)) {
+        if(!IsHiddenFile(new_path))
+            RenameFile(old_path.c_str(), new_path.c_str());
+    }
+    else {
+        LibUploadFile(new_path);
+    }
 }
 
 void LibCaller::LibCreateFolder(const std::string& folderpath) {
