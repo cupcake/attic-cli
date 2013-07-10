@@ -283,6 +283,15 @@ void Application::ProcessCommand(split& s) {
                 std::cout<<" usage : delete_folder <path/to/folder>" << std::endl;
             }
         }
+        else if (toplevel == "get_public_key") {
+            if(s.size() > 1) {
+                int result = RequestEntityPublicKey(s[1].c_str(), RequestCB);
+                std::cout<<" result : " << result <<std::endl;
+            }
+            else
+                std::cout<<" usage : get_public_key <entity_url> " << std::endl;
+
+        }
         else if(toplevel == "exit") {
             running_ = false;
             if(libstarted_) {
