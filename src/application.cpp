@@ -265,6 +265,14 @@ void Application::ProcessCommand(split& s) {
 
             }
         }
+        else if(toplevel == "share_file_post") {
+            if(s.size() > 2) {
+                int result = ShareFilePostWithEntity(s[1].c_str(), s[2].c_str(), RequestCB);
+            }
+            else {
+                std::cout<<" usage : shared_file_post <post_id>, <entity_url> " << std::endl;
+            }
+        }
         else if (toplevel == "create_folder") {
             if(s.size() > 1) {
                 int result = CreateLocalFolder(s[1]);
@@ -315,6 +323,7 @@ void Application::ProcessCommand(split& s) {
                 }
             }
         }
+
         else if(toplevel == "add_dir_to_watcher") {
             if(watcher_->is_init()) {
                 if(s.size() > 1) {
